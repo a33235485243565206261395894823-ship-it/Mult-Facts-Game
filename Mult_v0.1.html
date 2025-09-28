@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Multiplication Facts</title>
+<style>
+  :root{--bg:#f7f7f7;--card:#fff;--accent:#2b6cb0}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; margin:0; background:var(--bg); color:#111}
+  header{background:#fff; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,.06); display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:10}
+  h1{margin:0; font-size:20px}
+  .chart-img{max-width:420px; border:1px solid #ddd; border-radius:6px}
+  main{padding:18px; max-width:1200px; margin:0 auto}
+  .grid{display:grid; gap:12px}
+  .home-grid{grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); align-items:start}
+  button{cursor:pointer; padding:10px 12px; border-radius:6px; border:1px solid #ccc; background:#fff}
+  .primary{background:var(--accent); color:white; border-color:transparent}
+  .top-right-timer{position:fixed; right:18px; top:12px; padding:8px 12px; border-radius:6px; font-weight:700; color:#fff; background:#c53030; z-index:50}
+  .notice{color:#c53030; font-weight:700; margin-bottom:12px}
+  .hidden{display:none}
+  #quiz-area{display:flex; gap:16px; flex-direction:column}
+  .controls{display:flex; gap:8px; align-items:center}
+  .questions-grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:8px; max-height:65vh; overflow:auto; padding:6px; background:#fff; border-radius:6px; border:1px solid #e2e8f0}
+  .question-card{display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:6px; background:#fafafa; border:1px solid #e6e6e6}
+  .question-top{display:flex; justify-content:space-between; align-items:center; gap:8px}
+  .q-label{font-weight:700}
+  input[type="number"]{width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:16px}
+  .enter-btn{padding:8px 10px}
+  .results-grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:8px}
+  .result-card{padding:8px; border-radius:6px; background:#fff; border:2px solid #ddd; display:flex; flex-direction:column; gap:6px}
+  .correct{border-color:#2f855a}
+  .incorrect{border-color:#e53e3e}
+  .small-muted{font-size:12px; color:#555}
+  .answer-key{overflow:auto; background:#fff; padding:12px; border-radius:6px; border:1px solid #ddd}
+  table{border-collapse:collapse}
+  td,th{padding:6px 8px; border:1px solid #eee; text-align:center}
+  .home-link{margin-left:auto}
+  footer{padding:12px; text-align:center; font-size:13px; color:#555}
+  @media (max-width:640px){
+    .questions-grid{grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;flex-direction:column">
+    <h1>Multiplication Facts</h1>
+    <div class="small-muted">Choose a factor set (1–12) to practice. 2-minute timed test; 250 problems.</div>
+  </div>
+  <div class="home-link" style="margin-left:auto; display:flex; gap:8px; align-items:center">
+    <button id="btn-answerkey">Answer Key</button>
+    <button id="btn-home" class="hidden">Home</button>
+  </div>
+</header>
+
+<div id="timer" class="top-right-timer hidden">02:00</div>
+
+<main>
+  <!-- HOME -->
+  <section id="home">
+    <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap">
+      <!-- Embedded multiplication chart as an inline SVG image -->
+      <img id="mult-chart" class="chart-img" alt="Multiplication Chart 1-12" />
+      <div style="flex:1; min-width:260px">
+        <p>Click a factor button to prepare a 250-question timed quiz consisting of that factor multiplied by 1–12 repeated and shuffled. Each run reshuffles.</p>
+        <div class="grid home-grid" id="factor-buttons" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="hidden">
+    <div id="quiz-area">
+      <div class="notice">You have a two-minute time limit, try to complete as many questions as possible</div>
+      <div class="controls">
+        <button id="start-btn" class="primary">Start</button>
+        <button id="finish-now">Finish Now</button>
+        <div style="margin-left:auto"><strong>Selected:</strong> <span id="selected-factor"></span></div>
+      </div>
+
+      <div class="questions-grid" id="questions-grid" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="hidden">
+    <h2>Results</h2>
+    <div id="summary" style="margin-bottom:12px"></div>
+    <div id="results-grid" class="results-grid"></div>
+    <div style="margin-top:12px">
+      <button id="back-home" class="primary">Back to Home</button>
+    </div>
+  </section>
+
+  <!-- ANSWER KEY (hidden by default; password-protected) -->
+  <section id="answer-key" class="hidden">
+    <h2>Answer Key (1×1 through 12×12)</h2>
+    <div class="answer-key" id="answer-key-table"></div>
+    <div style="margin-top:12px">
+      <button id="close-answerkey">Close Answer Key</button>
+    </div>
+  </section>
+
+</main>
+
+<footer>Multiplication practice — 250-question timed set per selection.</footer>
+
+<script>
+/* -------- Configuration & Utilities -------- */
+const PASSWORD = "SECUREpassword123";
+const TOTAL_QUESTIONS = 250;
+const SECONDS_LIMIT = 120;
+
+function makeChartSVG() {
+  const size = 480;
+  const cell = Math.floor(size / 13);
+  const pad = 6;
+  let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420">';
+  svg += '<rect width="100%" height="100%" fill="#ffffff" stroke="#ddd"/>';
+  // Headers
+  for (let c = 1; c <= 12; c++) {
+    const x = c * cell + pad;
+    svg += `<text x="${x+8}" y="${cell-6}" font-size="12" font-family="monospace" fill="#000">${c}</text>`;
+  }
+  for (let r = 1; r <= 12; r++) {
+    const y = (r+1) * cell - 8;
+    svg += `<text x="${pad+4}" y="${y}" font-size="12" font-family="monospace" fill="#000">${r}</text>`;
+  }
+  // Cells
+  for (let r = 1; r <= 12; r++) {
+    for (let c = 1; c <= 12; c++) {
+      const x = (c) * cell + pad;
+      const y = (r+1) * cell - 4;
+      svg += `<rect x="${(c*cell)+pad}" y="${((r+1)*cell)-cell+6}" width="${cell-4}" height="${cell-4}" fill="#f6f8fb" stroke="#e1e8f0"/>`;
+      svg += `<text x="${x+12}" y="${y+6}" font-size="12" font-family="monospace" fill="#111">${r*c}</text>`;
+    }
+  }
+  svg += '</svg>';
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+/* -------- App State -------- */
+let selectedFactor = null;
+let questions = []; // {label, a, b, answer, userAnswer, timeAnswered}
+let currentIndex = 0;
+let timerInterval = null;
+let secondsLeft = SECONDS_LIMIT;
+let startTime = null;
+let finished = false;
+
+/* -------- DOM refs -------- */
+const multChartImg = document.getElementById("mult-chart");
+const factorButtonsEl = document.getElementById("factor-buttons");
+const homeSection = document.getElementById("home");
+const quizSection = document.getElementById("quiz");
+const resultsSection = document.getElementById("results");
+const answerKeySection = document.getElementById("answer-key");
+
+const timerEl = document.getElementById("timer");
+const selectedFactorEl = document.getElementById("selected-factor");
+const questionsGrid = document.getElementById("questions-grid");
+const startBtn = document.getElementById("start-btn");
+const finishNowBtn = document.getElementById("finish-now");
+const summaryEl = document.getElementById("summary");
+const resultsGrid = document.getElementById("results-grid");
+const btnAnswerKey = document.getElementById("btn-answerkey");
+const btnHome = document.getElementById("btn-home");
+const backHomeBtn = document.getElementById("back-home");
+const closeAnswerKeyBtn = document.getElementById("close-answerkey");
+const answerKeyTable = document.getElementById("answer-key-table");
+
+/* -------- Initialize UI -------- */
+multChartImg.src = makeChartSVG();
+
+// Create factor buttons 1..12
+for (let i = 1; i <= 12; i++) {
+  const btn = document.createElement("button");
+  btn.textContent = `${i} facts`;
+  btn.addEventListener("click", () => prepareFactor(i));
+  factorButtonsEl.appendChild(btn);
+}
+
+btnAnswerKey.addEventListener("click", showAnswerKey);
+closeAnswerKeyBtn.addEventListener("click", () => {
+  answerKeySection.classList.add("hidden");
+  homeSection.classList.remove("hidden");
+});
+btnHome.addEventListener("click", goHome);
+backHomeBtn.addEventListener("click", goHome);
+
+/* -------- Answer Key (password protected) -------- */
+function showAnswerKey() {
+  const pass = prompt("Enter password to view the Answer Key:");
+  if (pass === null) return;
+  if (pass === PASSWORD) {
+    renderAnswerKey();
+    homeSection.classList.add("hidden");
+    answerKeySection.classList.remove("hidden");
+    btnHome.classList.remove("hidden");
+  } else {
+    alert("Incorrect password.");
+  }
+}
+
+function renderAnswerKey() {
+  let html = '<table><thead><tr><th>×</th>';
+  for (let c = 1; c <= 12; c++) html += `<th>${c}</th>`;
+  html += '</tr></thead><tbody>';
+  for (let r = 1; r <= 12; r++) {
+    html += `<tr><th>${r}</th>`;
+    for (let c = 1; c <= 12; c++) {
+      html += `<td>${r*c}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  answerKeyTable.innerHTML = html;
+}
+
+/* -------- Navigation -------- */
+function goHome() {
+  // reset quiz state
+  stopTimer();
+  finished = false;
+  quizSection.classList.add("hidden");
+  resultsSection.classList.add("hidden");
+  answerKeySection.classList.add("hidden");
+  homeSection.classList.remove("hidden");
+  btnHome.classList.add("hidden");
+  timerEl.classList.add("hidden");
+}
+
+/* -------- Prepare & Start Quiz -------- */
+function prepareFactor(factor) {
+  selectedFactor = factor;
+  selectedFactorEl.textContent = `${factor} × (1–12)`;
+  // create question pool (1..12) then shuffle repeatedly until TOTAL_QUESTIONS
+  const base = [];
+  for (let b = 1; b <= 12; b++) {
+    base.push({a: factor, b, label: `${factor}×${b}`, answer: factor * b});
+  }
+  let pool = [];
+  while (pool.length < TOTAL_QUESTIONS) {
+    const copy = base.map(x => Object.assign({}, x));
+    shuffle(copy);
+    pool = pool.concat(copy);
+  }
+  pool.length = TOTAL_QUESTIONS; // cut to exact length
+  // clear previous state
+  questions = pool.map(q => Object.assign({}, q, {userAnswer: "", timeAnswered: null}));
+  currentIndex = 0;
+  renderQuiz();
+  homeSection.classList.add("hidden");
+  quizSection.classList.remove("hidden");
+  btnHome.classList.remove("hidden");
+  timerEl.classList.add("hidden");
+  // ensure start button ready
+  startBtn.disabled = false;
+}
+
+function renderQuiz() {
+  questionsGrid.innerHTML = "";
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const card = document.createElement("div");
+    card.className = "question-card";
+    card.dataset.index = i;
+    const top = document.createElement("div");
+    top.className = "question-top";
+    const label = document.createElement("div");
+    label.className = "q-label";
+    label.textContent = `${i+1}. ${q.label} =`;
+    top.appendChild(label);
+    const small = document.createElement("div");
+    small.className = "small-muted";
+    small.textContent = `#${i+1}`;
+    top.appendChild(small);
+    card.appendChild(top);
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.inputMode = "numeric";
+    input.placeholder = "answer";
+    input.value = q.userAnswer !== undefined ? q.userAnswer : "";
+    input.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        submitAnswer(i);
+      }
+    });
+    input.addEventListener("input", (ev) => {
+      questions[i].userAnswer = ev.target.value;
+    });
+
+    const enterBtn = document.createElement("button");
+    enterBtn.className = "enter-btn";
+    enterBtn.textContent = "Enter";
+    enterBtn.addEventListener("click", () => submitAnswer(i));
+
+    card.appendChild(input);
+    card.appendChild(enterBtn);
+    questionsGrid.appendChild(card);
+  }
+  // autofocus first input
+  const firstInput = questionsGrid.querySelector('input');
+  if (firstInput) firstInput.focus();
+}
+
+function submitAnswer(index) {
+  const card = questionsGrid.querySelector(`.question-card[data-index="${index}"]`);
+  if (!card) return;
+  const input = card.querySelector("input");
+  const val = input.value;
+  // record time answered relative to start
+  if (startTime && !questions[index].timeAnswered) {
+    questions[index].timeAnswered = (Date.now() - startTime) / 1000; // seconds
+  }
+  questions[index].userAnswer = val;
+  // move focus to next unanswered or next index
+  let next = index + 1;
+  while (next < questions.length && false) next++; // placeholder if we want skip logic
+  if (next < questions.length) {
+    const nextCard = questionsGrid.querySelector(`.question-card[data-index="${next}"]`);
+    if (nextCard) {
+      const nextInput = nextCard.querySelector("input");
+      if (nextInput) nextInput.focus();
+    }
+  }
+}
+
+/* -------- Timer & Finish -------- */
+startBtn.addEventListener("click", () => {
+  if (!selectedFactor) return alert("Select a factor set first.");
+  startBtn.disabled = true;
+  secondsLeft = SECONDS_LIMIT;
+  timerEl.classList.remove("hidden");
+  updateTimerDisplay();
+  // record start time
+  startTime = Date.now();
+  finished = false;
+  timerInterval = setInterval(() => {
+    secondsLeft = Math.max(0, SECONDS_LIMIT - Math.floor((Date.now() - startTime)/1000));
+    updateTimerDisplay();
+    if (secondsLeft <= 0) {
+      stopTimer();
+      finishQuiz();
+    }
+  }, 200);
+});
+
+finishNowBtn.addEventListener("click", () => {
+  if (confirm("Finish now and view results?")) {
+    stopTimer();
+    finishQuiz();
+  }
+});
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  timerEl.classList.add("hidden");
+}
+
+function updateTimerDisplay() {
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2,"0");
+  const ss = String(secondsLeft % 60).padStart(2,"0");
+  timerEl.textContent = `${mm}:${ss}`;
+}
+
+/* -------- Finish & Results Rendering -------- */
+function finishQuiz() {
+  if (finished) return;
+  finished = true;
+  // If there are inputs not recorded with timeAnswered but with values, mark their time as elapsed time
+  const now = Date.now();
+  const elapsed = Math.min(SECONDS_LIMIT, Math.round((now - (startTime || now))/1000));
+  for (let i = 0; i < questions.length; i++) {
+    if (!questions[i].timeAnswered && questions[i].userAnswer !== "" && questions[i].userAnswer !== undefined) {
+      // approximate time: elapsed * (i+1)/answeredCount is complex; use current elapsed
+      questions[i].timeAnswered = elapsed;
+    }
+  }
+  // Count corrects; unanswered counts as incorrect
+  let correctCount = 0;
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const ua = q.userAnswer === "" || q.userAnswer === undefined ? null : Number(q.userAnswer);
+    if (ua !== null && ua === q.answer) correctCount++;
+  }
+  // number answered (any non-empty)
+  const answeredCount = questions.filter(q => q.userAnswer !== "" && q.userAnswer !== undefined).length;
+  const total = TOTAL_QUESTIONS;
+  const elapsedSeconds = Math.min(SECONDS_LIMIT, Math.round((now - (startTime || now))/1000));
+  const avgTimePerQuestion = answeredCount > 0 ? (elapsedSeconds / answeredCount) : 0;
+  const questionsPerMinute = avgTimePerQuestion > 0 ? (60 / avgTimePerQuestion) : 0;
+
+  // prepare summary
+  summaryEl.innerHTML = `
+    <div><strong>Score:</strong> ${correctCount}/${total}</div>
+    <div><strong>Answered:</strong> ${answeredCount}/${total}</div>
+    <div><strong>Total elapsed:</strong> ${elapsedSeconds} seconds</div>
+    <div><strong>Average time per answered question:</strong> ${avgTimePerQuestion.toFixed(2)} s</div>
+    <div><strong>Questions per minute (from average):</strong> ${questionsPerMinute.toFixed(2)}</div>
+  `;
+
+  // render result cards (color-coded)
+  resultsGrid.innerHTML = "";
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const card = document.createElement("div");
+    card.className = "result-card";
+    const uaRaw = q.userAnswer === "" || q.userAnswer === undefined ? "" : q.userAnswer;
+    const ua = uaRaw === "" ? null : Number(uaRaw);
+    const correct = ua !== null && ua === q.answer;
+    if (correct) card.classList.add("correct");
+    else card.classList.add("incorrect");
+    const top = document.createElement("div");
+    top.textContent = `${i+1}. ${q.label} = `;
+    const inputBox = document.createElement("div");
+    inputBox.style.padding = "8px";
+    inputBox.style.borderRadius = "6px";
+    inputBox.style.background = "#f3f3f3";
+    inputBox.style.fontWeight = "700";
+    inputBox.textContent = (uaRaw === "" || uaRaw === undefined) ? "[no answer]" : uaRaw;
+    const correctLine = document.createElement("div");
+    correctLine.className = "small-muted";
+    correctLine.textContent = `Correct Answer: ${q.answer}`;
+    card.appendChild(top);
+    card.appendChild(inputBox);
+    card.appendChild(correctLine);
+    resultsGrid.appendChild(card);
+  }
+
+  // switch views
+  quizSection.classList.add("hidden");
+  resultsSection.classList.remove("hidden");
+}
+
+/* -------- Misc: ensure each run reshuffles questions anew -------- */
+/* Done in prepareFactor: pool is randomized every time Start is clicked. */
+
+/* -------- Initial navigation state -------- */
+goHome();
+</script>
+</body>
+</html>
