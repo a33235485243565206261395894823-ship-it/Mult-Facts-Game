@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Multiplication Facts</title>
+<style>
+  :root{
+    --bg:#f7f7f7;
+    --card:#fff;
+    --accent:#2b6cb0;
+    --danger:#c53030;
+  }
+  body{
+    font-family: system-ui,-apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    margin:0;
+    background:var(--bg);
+    color:#111;
+  }
+  header{
+    background:#fff;
+    padding:12px 20px;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  #home-btn {
+    position:absolute;
+    left:18px;
+    top:12px;
+    background:#000;
+    color:#fff;
+    border:none;
+    padding:10px 14px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  h1{ margin:0; font-size:40px; text-align:center; font-weight:800; }
+  main{ padding:20px; max-width:1200px; margin:0 auto }
+  .grid{display:grid; gap:12px}
+  .home-grid{ grid-template-columns: repeat(3, minmax(120px, 1fr)); align-items:stretch; margin-top:18px; }
+  button.factor{ cursor:pointer; padding:14px 12px; border-radius:8px; border:1px solid #999; background:#fff; font-size:18px; font-weight:700; }
+  button.factor:hover{background:#f0f0f0}
+  button.factor.pressed{ background:#f3f3f3; border:1px solid #000; color:#000; }
+  button.custom-btn{ background:#000; color:#fff; border:1px solid #000; font-weight:700; padding:12px; border-radius:8px; cursor:pointer; }
+  button.answer-key-home{ background:transparent; color:var(--danger); border:2px solid var(--danger); font-weight:700; padding:12px; border-radius:8px; cursor:pointer; }
+  .select-facts { padding:20px; max-width:900px; margin:0 auto; text-align:center; }
+  .checkbox-grid{ display:grid; grid-template-columns: repeat(6, 1fr); gap:8px; margin-top:12px; }
+  .checkbox-item{ display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; background:#fff; border-radius:6px; border:1px solid #e6e6e6; font-weight:800; }
+  .select-actions{ display:flex; gap:12px; justify-content:center; margin-top:12px; }
+  .select-time { padding:20px; max-width:420px; margin:0 auto; text-align:center; background:var(--card); border-radius:8px; border:1px solid #e6e6e6; }
+  .top-right-timer{position:fixed; right:18px; top:12px; padding:8px 12px; border-radius:6px; font-weight:700; color:#fff; background:var(--danger); z-index:50}
+  .notice{color:var(--danger); font-weight:700; margin-bottom:12px; text-align:center}
+  .hidden{display:none}
+  #quiz-area{display:flex; gap:16px; flex-direction:column}
+  .controls{display:flex; gap:8px; align-items:center; justify-content:center}
+  .questions-grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; max-height:65vh; overflow:auto; padding:10px; background:var(--card); border-radius:8px; border:1px solid #e2e8f0; }
+  .question-card{ display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:8px; background:#fafafa; border:1px solid #e6e6e6; min-height:98px; justify-content:center; }
+  .q-label{ font-weight:700; font-size:18px; text-align:center }
+  input[type="number"], input[type="number"].time-input{ width:100%; padding:8px; border-radius:6px; border:1px solid #bbb; font-size:16px; box-sizing:border-box; }
+  .enter-btn{ padding:8px 10px; cursor:pointer }
+  .results-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:12px; }
+  .result-card{ padding:10px; border-radius:8px; background:var(--card); border:2px solid #ddd; display:flex; flex-direction:column; gap:8px; }
+  .correct{ border-color:#2f855a }
+  .incorrect{ border-color:#e53e3e }
+  .small-muted{ font-size:13px; color:#555 }
+  .answer-key{ overflow:auto; background:var(--card); padding:12px; border-radius:6px; border:1px solid #ddd; margin-top:18px }
+  #home-answer-key { margin-top:18px; }
+  #finish-below { text-align:center; margin-top:12px; }
+  #finish-below button { padding:10px 14px; font-weight:700; border-radius:8px; cursor:pointer; }
+  /* printable content styles */
+  .printable-questions { font-size:18px; background:#fff; padding:12px; border-radius:6px; }
+  .printable-questions div.row { margin-bottom:8px; }
+  @media (max-width:820px){ .home-grid{grid-template-columns: repeat(2, 1fr)} .questions-grid{grid-template-columns: repeat(2, 1fr)} .checkbox-grid{grid-template-columns: repeat(4, 1fr)} .printable-questions { font-size:16px; } }
+  @media (max-width:520px){ h1{font-size:28px} .home-grid{grid-template-columns: 1fr} .questions-grid{grid-template-columns: 1fr} .checkbox-grid{grid-template-columns: repeat(3, 1fr)} #home-btn{top:8px; left:8px; padding:8px 10px} .top-right-timer{right:8px; top:8px; padding:6px 8px} }
+  /* print styles for printable output: force white background, page-break for answers */
+  @media print {
+    body * { visibility: hidden; }
+    #printable-output, #printable-output * { visibility: visible; }
+    #printable-output { position: absolute; left: 0; top: 0; width: 100%; }
+    .page-break { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button id="home-btn">Home</button>
+  <h1>Multiplication Facts</h1>
+</header>
+
+<div id="timer" class="top-right-timer hidden">02:00</div>
+
+<main>
+  <!-- HOME -->
+  <section id="home">
+    <p style="text-align:center; margin-top:10px; font-size:18px;">
+      Use the factor buttons for single-factor practice, or use <strong>Custom</strong> to build mixed quizzes.
+    </p>
+
+    <div class="grid home-grid" id="factor-buttons" style="margin-top:10px"></div>
+
+    <!-- Rendered answer key chart inserted into home -->
+    <div id="home-answer-key" class="answer-key"></div>
+  </section>
+
+  <!-- SELECT FACTS (Custom flow) -->
+  <section id="select-facts" class="hidden">
+    <h2 style="text-align:center">Select Facts</h2>
+    <div class="select-facts">
+      <div class="checkbox-grid" id="checkbox-grid"></div>
+      <div class="select-actions">
+        <button id="select-back" class="primary">Back</button>
+        <button id="select-finished" class="primary">Finished</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SELECT TIME (after selecting facts) -->
+  <section id="select-time" class="hidden">
+    <h2 style="text-align:center">Select Time or Questions</h2>
+    <div class="select-time">
+      <div style="margin-bottom:10px;">
+        <label style="font-weight:700; margin-right:12px;"><input type="radio" name="custom-mode" value="time" checked> Time</label>
+        <label style="font-weight:700;"><input type="radio" name="custom-mode" value="questions"> Questions</label>
+      </div>
+
+      <div id="time-controls">
+        <label for="time-minutes">Duration (minutes) — min 0.5, max 10</label>
+        <input id="time-minutes" class="time-input" type="number" step="0.5" min="0.5" max="10" value="2" />
+      </div>
+
+      <div id="questions-controls" class="hidden">
+        <label for="custom-question-count">Number of questions — min 2, max 500</label><br/>
+        <input id="custom-question-count" type="number" min="2" max="500" step="1" value="250" class="time-input" style="margin-top:6px; width:120px"/>
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:8px">
+        <button id="time-back" class="primary">Back</button>
+        <button id="time-start" class="primary">Prepare</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRINTABLE FLOW: Select Facts & Config & Output -->
+  <section id="printable-facts" class="hidden">
+    <h2 style="text-align:center">Printable — Select Facts</h2>
+    <div class="select-facts">
+      <div class="checkbox-grid" id="printable-checkbox-grid"></div>
+      <div class="select-actions">
+        <button id="printable-back" class="primary">Back</button>
+        <button id="printable-next" class="primary">Next</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="printable-config" class="hidden">
+    <h2 style="text-align:center">Printable Configuration</h2>
+    <div class="select-time">
+      <label for="printable-question-count">Number of questions — min 5, max 250</label><br/>
+      <input id="printable-question-count" type="number" min="5" max="250" value="25" class="time-input" style="margin-top:6px; width:120px"/>
+      <div style="margin-top:12px">
+        <label><input type="checkbox" id="printable-include-answers" /> Include Answer Key</label>
+      </div>
+      <div id="printable-finish-row" style="text-align:center; margin-top:12px;">
+        <button id="printable-finish" class="custom-btn">Finish</button>
+        <p style="margin-top:8px; font-weight:700; color:#c53030;">Use Ctrl+P to Print</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="printable-output" class="hidden">
+    <div id="printable-content" class="printable-questions" style="max-width:900px; margin:0 auto; background:#fff;"></div>
+    <div style="margin-top:12px; text-align:center">
+      <button id="printable-home" class="primary">Back to Home</button>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="hidden">
+    <div id="quiz-area">
+      <div id="notice" class="notice">You have a time limit — try to complete as many questions as possible</div>
+
+      <div class="controls">
+        <button id="start-btn" class="primary">Start</button>
+        <button id="finish-now" class="primary">Finish Now</button>
+        <div style="min-width:220px; text-align:center"><strong>Selected:</strong> <span id="selected-factor"></span></div>
+      </div>
+
+      <!-- Questions are not displayed until Start is pressed -->
+      <div class="questions-grid hidden" id="questions-grid" aria-live="polite"></div>
+
+      <!-- Finish button location (beneath questions grid). Hidden except in Custom->Questions mode -->
+      <div id="finish-below" class="hidden">
+        <button id="finish-below-btn" class="primary">Finish</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="hidden">
+    <h2 style="text-align:center">Results</h2>
+    <div id="summary" style="margin:12px auto; max-width:900px; text-align:center"></div>
+    <div id="results-grid" class="results-grid"></div>
+    <div style="margin-top:12px; text-align:center">
+      <button id="back-home" class="primary">Back to Home</button>
+<button id="toggle-answered-btn" class="primary" data-hidden="false" style="margin-left:12px; display:inline-block;">
+  Hide answered
+</button>
+
+    </div>
+  </section>
+
+  <!-- ANSWER KEY (separate full view - password protected) -->
+  <section id="answer-key" class="hidden">
+    <h2 style="text-align:center">Answer Key (1 × 1 through 12 × 12)</h2>
+    <div class="answer-key" id="answer-key-table" style="max-width:900px; margin:12px auto"></div>
+    <div style="margin-top:12px; text-align:center">
+      <button id="close-answerkey" class="primary">Close Answer Key</button>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------- Configuration ---------- */
+const PASSWORD = "SECUREpassword123";
+const TOTAL_QUESTIONS = 250;
+
+/* ---------- Utility ---------- */
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+/* ---------- State ---------- */
+let selectedFactor = null;
+let selectedFactorsSet = new Set();
+let questions = [];
+let timerInterval = null;
+let secondsLeft = 0;
+let startTime = null;
+let finished = false;
+let currentMode = null; // "single" or "custom" or "printable"
+let selectedDurationMinutes = 2;
+let customModeSelection = 'time'; // 'time' or 'questions'
+let customQuestionCount = 250;
+
+/* ---------- DOM refs ---------- */
+const factorButtonsEl = document.getElementById("factor-buttons");
+const homeSection = document.getElementById("home");
+const selectFactsSection = document.getElementById("select-facts");
+const selectTimeSection = document.getElementById("select-time");
+const quizSection = document.getElementById("quiz");
+const resultsSection = document.getElementById("results");
+const answerKeySection = document.getElementById("answer-key");
+
+const timerEl = document.getElementById("timer");
+const selectedFactorEl = document.getElementById("selected-factor");
+const questionsGrid = document.getElementById("questions-grid");
+const startBtn = document.getElementById("start-btn"); // do NOT clone this node
+const finishNowBtn = document.getElementById("finish-now");
+const summaryEl = document.getElementById("summary");
+const resultsGrid = document.getElementById("results-grid");
+const backHomeBtn = document.getElementById("back-home");
+const closeAnswerKeyBtn = document.getElementById("close-answerkey");
+const answerKeyTable = document.getElementById("answer-key-table");
+const homeBtn = document.getElementById("home-btn");
+const noticeEl = document.getElementById("notice");
+const homeAnswerKeyDiv = document.getElementById("home-answer-key");
+
+const checkboxGrid = document.getElementById("checkbox-grid");
+const selectBackBtn = document.getElementById("select-back");
+const selectFinishedBtn = document.getElementById("select-finished");
+const timeMinutesInput = document.getElementById("time-minutes");
+const timeStartBtn = document.getElementById("time-start");
+const timeBackBtn = document.getElementById("time-back");
+const customQuestionsControls = document.getElementById("questions-controls");
+const customQuestionCountInput = document.getElementById("custom-question-count");
+const finishBelowDiv = document.getElementById("finish-below");
+const finishBelowBtn = document.getElementById("finish-below-btn");
+
+/* Printable refs */
+const printableFactsSection = document.getElementById("printable-facts");
+const printableCheckboxGrid = document.getElementById("printable-checkbox-grid");
+const printableBackBtn = document.getElementById("printable-back");
+const printableNextBtn = document.getElementById("printable-next");
+const printableConfigSection = document.getElementById("printable-config");
+const printableQuestionCountInput = document.getElementById("printable-question-count");
+const printableIncludeAnswersChk = document.getElementById("printable-include-answers");
+const printableFinishBtn = document.getElementById("printable-finish");
+const printableOutputSection = document.getElementById("printable-output");
+const printableContent = document.getElementById("printable-content");
+const printableHomeBtn = document.getElementById("printable-home");
+
+/* ---------- Build Home Buttons (1..12), Custom, Printable, Answer Key ---------- */
+for(let i=1;i<=12;i++){
+  const btn = document.createElement("button");
+  btn.className = "factor";
+  btn.textContent = `${i} facts`;
+  btn.title = "Click to start single-factor practice for this factor";
+  btn.addEventListener("click", ()=> {
+    // pressed visual style
+    document.querySelectorAll('.factor, .custom-btn, .answer-key-home').forEach(el=>el.classList.remove('pressed'));
+    btn.classList.add('pressed');
+    prepareFactor(i);
+  });
+  factorButtonsEl.appendChild(btn);
+}
+
+/* Custom button */
+const customBtn = document.createElement("button");
+customBtn.className = "custom-btn";
+customBtn.textContent = "Custom";
+customBtn.title = "Custom Mode: Select Facts → Select Questions/Time";
+customBtn.addEventListener("click", ()=> {
+  document.querySelectorAll('.factor, .custom-btn, .answer-key-home').forEach(el=>el.classList.remove('pressed'));
+  customBtn.classList.add('pressed');
+  showSelectFacts();
+});
+factorButtonsEl.appendChild(customBtn);
+
+/* Printable button (black) */
+const printableBtn = document.createElement("button");
+printableBtn.className = "custom-btn";
+printableBtn.textContent = "Printable";
+printableBtn.title = "Printable Mode: Select Facts → Number of Questions";
+printableBtn.addEventListener("click", ()=> {
+  document.querySelectorAll('.factor, .custom-btn, .answer-key-home').forEach(el=>el.classList.remove('pressed'));
+  printableBtn.classList.add('pressed');
+  showPrintableSelectFacts();
+});
+factorButtonsEl.appendChild(printableBtn);
+
+/* Answer Key button (password-protected full view) */
+const answerKeyBtnHome = document.createElement("button");
+answerKeyBtnHome.className = "answer-key-home";
+answerKeyBtnHome.textContent = "Answer Key";
+answerKeyBtnHome.addEventListener("click", showAnswerKeyFromHome);
+factorButtonsEl.appendChild(answerKeyBtnHome);
+
+/* ---------- Render answer key chart into home immediately ---------- */
+function renderAnswerKeyIntoHome(){
+  let html = '<table style="border-collapse:collapse; margin:0 auto">';
+  html += '<thead><tr><th style="padding:6px 8px; border:1px solid #ddd; background:#fafafa; font-weight:800">×</th>';
+  for(let c=1;c<=12;c++) html += `<th style="padding:6px 8px; border:1px solid #ddd; background:#fafafa; font-weight:800">${c}</th>`;
+  html += '</tr></thead><tbody>';
+  for(let r=1;r<=12;r++){
+    html += `<tr><th style="padding:6px 8px; border:1px solid #ddd; background:#fafafa; font-weight:800">${r}</th>`;
+    for(let c=1;c<=12;c++){
+      html += `<td style="padding:6px 8px; border:1px solid #eee">${r*c}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  homeAnswerKeyDiv.innerHTML = html;
+}
+renderAnswerKeyIntoHome();
+
+/* ---------- Answer Key (password-protected full view) ---------- */
+function showAnswerKeyFromHome(){
+  if (!homeSection.classList.contains("hidden")) {
+    const pass = prompt("Enter password to view the Answer Key:");
+    if (pass === null) return;
+    if (pass === PASSWORD) {
+      renderAnswerKeyFull();
+      homeSection.classList.add("hidden");
+      answerKeySection.classList.remove("hidden");
+      answerKeyBtnHome.style.display = "none";
+    } else {
+      alert("Incorrect password");
+    }
+  }
+}
+function renderAnswerKeyFull(){
+  let html = '<table style="border-collapse:collapse; margin:0 auto">';
+  html += '<thead><tr><th style="padding:6px 8px; border:1px solid #ddd; background:#fafafa; font-weight:800">×</th>';
+  for(let c=1;c<=12;c++) html += `<th style="padding:6px 8px; border:1px solid #ddd; background:#fafafa; font-weight:800">${c}</th>`;
+  html += '</tr></thead><tbody>';
+  for(let r=1;r<=12;r++){
+    html += `<tr><th style="padding:6px 8px; border:1px solid #ddd; background:#fafafa; font-weight:800">${r}</th>`;
+    for(let c=1;c<=12;c++){
+      html += `<td style="padding:6px 8px; border:1px solid #eee">${r*c}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  answerKeyTable.innerHTML = html;
+}
+
+/* ---------- Navigation helpers ---------- */
+function goHome(){
+  stopTimer();
+  finished = false;
+  selectedFactor = null;
+  questions = [];
+  startTime = null;
+  secondsLeft = 0;
+  currentMode = null;
+  selectedDurationMinutes = 2;
+  customModeSelection = 'time';
+  customQuestionCount = 250;
+
+  homeSection.classList.remove("hidden");
+  selectFactsSection.classList.add("hidden");
+  selectTimeSection.classList.add("hidden");
+  quizSection.classList.add("hidden");
+  resultsSection.classList.add("hidden");
+  answerKeySection.classList.add("hidden");
+  printableFactsSection.classList.add("hidden");
+  printableConfigSection.classList.add("hidden");
+  printableOutputSection.classList.add("hidden");
+
+  questionsGrid.innerHTML = "";
+  questionsGrid.classList.add("hidden");
+  selectedFactorEl.textContent = "";
+  startBtn.disabled = false;             // ensure Start is enabled after returning home
+  answerKeyBtnHome.style.display = "";
+  // clear pressed style for factoring btns
+  document.querySelectorAll('.factor, .custom-btn, .answer-key-home').forEach(el=>el.classList.remove('pressed'));
+  // hide finish-below
+  finishBelowDiv.classList.add('hidden');
+}
+homeBtn.addEventListener("click", goHome);
+backHomeBtn.addEventListener("click", goHome);
+closeAnswerKeyBtn.addEventListener("click", ()=>{ answerKeySection.classList.add("hidden"); homeSection.classList.remove("hidden"); answerKeyBtnHome.style.display = ""; });
+
+/* ---------- SELECT FACTS screen logic ---------- */
+function showSelectFacts(){
+  checkboxGrid.innerHTML = "";
+  for(let i=1;i<=12;i++){
+    const item = document.createElement("label");
+    item.className = "checkbox-item";
+    const chk = document.createElement("input");
+    chk.type = "checkbox";
+    chk.value = i;
+    chk.checked = selectedFactorsSet.has(i);
+    chk.addEventListener("change", (ev)=>{ if(ev.target.checked) selectedFactorsSet.add(i); else selectedFactorsSet.delete(i); });
+    const span = document.createElement("span");
+    span.textContent = `${i}`;
+    span.style.fontWeight = "800";
+    item.appendChild(chk);
+    item.appendChild(span);
+    checkboxGrid.appendChild(item);
+  }
+  homeSection.classList.add("hidden");
+  selectFactsSection.classList.remove("hidden");
+  selectTimeSection.classList.add("hidden");
+  quizSection.classList.add("hidden");
+  resultsSection.classList.add("hidden");
+  answerKeySection.classList.add("hidden");
+  printableFactsSection.classList.add("hidden");
+  answerKeyBtnHome.style.display = "none";
+}
+selectBackBtn.addEventListener("click", ()=>{ selectFactsSection.classList.add("hidden"); homeSection.classList.remove("hidden"); answerKeyBtnHome.style.display = ""; });
+selectFinishedBtn.addEventListener("click", ()=>{ if(selectedFactorsSet.size === 0){ alert("Select at least one factor (1–12) first"); return; } selectFactsSection.classList.add("hidden"); selectTimeSection.classList.remove("hidden"); });
+
+/* ---------- SELECT TIME screen logic (Time / Questions toggle) ---------- */
+timeBackBtn.addEventListener("click", ()=>{ selectTimeSection.classList.add("hidden"); selectFactsSection.classList.remove("hidden"); });
+
+document.querySelectorAll('input[name="custom-mode"]').forEach(r=>{
+  r.addEventListener('change', ()=> {
+    customModeSelection = document.querySelector('input[name="custom-mode"]:checked').value;
+    if(customModeSelection === 'questions'){
+      document.getElementById('questions-controls').classList.remove('hidden');
+      document.getElementById('time-controls').classList.add('hidden');
+      noticeEl.classList.add('hidden');
+    } else {
+      document.getElementById('questions-controls').classList.add('hidden');
+      document.getElementById('time-controls').classList.remove('hidden');
+      noticeEl.classList.remove('hidden');
+    }
+  });
+});
+
+timeStartBtn.addEventListener("click", ()=>{
+  // prepare either time or questions mode
+  if(customModeSelection === 'questions'){
+    const qc = Number(customQuestionCountInput.value);
+    if(isNaN(qc) || qc < 2 || qc > 500){ alert('Enter a valid number of questions between 2 and 500'); return; }
+    customQuestionCount = qc;
+    const chosen = Array.from(selectedFactorsSet);
+    if(chosen.length === 0){ alert('Select at least one factor (1–12) first'); return; }
+    // build base 250 pool (random mix of selected factors)
+    const base = [];
+    while(base.length < TOTAL_QUESTIONS){
+      const a = chosen[Math.floor(Math.random()*chosen.length)];
+      const b = Math.floor(Math.random()*12)+1;
+      base.push({a,b, answer: a*b});
+    }
+    shuffle(base);
+    let final = [];
+    if(customQuestionCount <= TOTAL_QUESTIONS){
+      final = base.slice(0, customQuestionCount).map(q=>({...q}));
+    } else {
+      final = base.map(q=>({...q}));
+      const extra = base.slice(0, customQuestionCount - TOTAL_QUESTIONS).map(q=>({...q}));
+      final = final.concat(extra); // no reshuffle for extras
+    }
+    questions = final.map(q=>({...q, userAnswer:"", timeAnswered:null}));
+    // show quiz prepare (no timer yet)
+    selectedFactorEl.textContent = `Custom: ${chosen.join(", ")}`;
+    homeSection.classList.add("hidden");
+    selectFactsSection.classList.add("hidden");
+    selectTimeSection.classList.add("hidden");
+    answerKeySection.classList.add("hidden");
+    resultsSection.classList.add("hidden");
+    printableFactsSection.classList.add("hidden");
+    quizSection.classList.remove("hidden");
+    questionsGrid.innerHTML = "";
+    questionsGrid.classList.add("hidden");
+    startBtn.disabled = false;
+    answerKeyBtnHome.style.display = "none";
+    currentMode = "custom";
+    window._customMode = 'questions';
+    finishBelowDiv.classList.add('hidden');
+  } else {
+    // time mode
+    const val = Number(timeMinutesInput.value);
+    if(isNaN(val) || val < 0.5 || val > 10){ alert("Enter a valid duration between 30 seconds and 10 minutes"); return; }
+    selectedDurationMinutes = val;
+    if(typeof prepareCustom === 'function'){
+      prepareCustom(Array.from(selectedFactorsSet));
+      window._customMode = 'time';
+    } else {
+      alert('Internal error: prepareCustom unavailable.');
+    }
+  }
+});
+
+/* ---------- Printable flow ---------- */
+function showPrintableSelectFacts(){
+  printableCheckboxGrid.innerHTML = "";
+  for(let i=1;i<=12;i++){
+    const item = document.createElement("label");
+    item.className = "checkbox-item";
+    const chk = document.createElement("input");
+    chk.type = "checkbox";
+    chk.value = i;
+    const span = document.createElement("span");
+    span.textContent = `${i}`;
+    span.style.fontWeight = "800";
+    item.appendChild(chk);
+    item.appendChild(span);
+    printableCheckboxGrid.appendChild(item);
+  }
+  homeSection.classList.add("hidden");
+  printableFactsSection.classList.remove("hidden");
+  answerKeySection.classList.add("hidden");
+  selectFactsSection.classList.add("hidden");
+  selectTimeSection.classList.add("hidden");
+  quizSection.classList.add("hidden");
+  resultsSection.classList.add("hidden");
+  answerKeyBtnHome.style.display = "none";
+}
+printableBackBtn.addEventListener("click", ()=>{ printableFactsSection.classList.add("hidden"); homeSection.classList.remove("hidden"); answerKeyBtnHome.style.display = ""; });
+
+printableNextBtn.addEventListener("click", ()=>{
+  const selected = Array.from(printableCheckboxGrid.querySelectorAll("input:checked")).map(ch=>Number(ch.value));
+  if(selected.length === 0){ alert("Select at least one factor (1–12) first"); return; }
+  window._printableFactors = selected;
+  printableFactsSection.classList.add("hidden");
+  printableConfigSection.classList.remove("hidden");
+});
+
+printableFinishBtn.addEventListener("click", ()=>{
+  const selected = window._printableFactors || [];
+  const qCount = Number(printableQuestionCountInput.value);
+  if(isNaN(qCount) || qCount < 5 || qCount > 250){ alert("Enter a valid number of questions between 2 and 500"); return; }
+  // Build questions
+  const qs = [];
+  while(qs.length < qCount){
+    const a = selected[Math.floor(Math.random()*selected.length)];
+    const b = Math.floor(Math.random()*12)+1;
+    qs.push({a,b,answer:a*b});
+  }
+  // Build printable HTML: header + questions 5 per row
+  let html = `<h2 style="text-align:center">Factor(s): ${selected.join(", ")} | Questions: ${qCount}</h2>`;
+  html += `<div style="margin-top:16px;">`;
+  for(let i=0;i<qs.length;i++){
+    if(i % 5 === 0) html += `<div class="row">`;
+    html += `<span style="display:inline-block; margin-right:18px">${i+1}. ${qs[i].a}×${qs[i].b}= ______</span>`;
+    if(i % 5 === 4) html += `</div>`;
+  }
+  if(qs.length % 5 !== 0) html += `</div>`;
+  // Answer key on new page if requested
+  if(printableIncludeAnswersChk.checked){
+    html += `<div class="page-break"></div>`;
+    html += `<h2 style="text-align:center">Answer Key</h2>`;
+    html += `<div style="margin-top:16px;">`;
+    for(let i=0;i<qs.length;i++){
+      if(i % 5 === 0) html += `<div class="row">`;
+      html += `<span style="display:inline-block; margin-right:18px">${i+1}. ${qs[i].a}×${qs[i].b}= <strong>[${qs[i].answer}]</strong></span>`;
+      if(i % 5 === 4) html += `</div>`;
+    }
+    if(qs.length % 5 !== 0) html += `</div>`;
+  }
+  printableConfigSection.classList.add("hidden");
+  printableOutputSection.classList.remove("hidden");
+  printableContent.innerHTML = html;
+});
+
+/* ---------- Prepare single-factor (quick) ---------- */
+function prepareFactor(factor){
+  currentMode = "single";
+  selectedFactor = factor;
+  selectedFactorEl.textContent = `${factor} × (1–12)`;
+  const base = [];
+  for(let b=1;b<=12;b++){ base.push({a: factor, b: b, answer: factor*b}); }
+  let pool = [];
+  while(pool.length < TOTAL_QUESTIONS){ const copy = base.map(x => ({...x})); shuffle(copy); pool = pool.concat(copy); }
+  pool.length = TOTAL_QUESTIONS;
+  questions = pool.map(q => ({...q, userAnswer: "", timeAnswered: null}));
+  noticeEl.classList.remove("hidden");
+  homeSection.classList.add("hidden");
+  selectFactsSection.classList.add("hidden");
+  selectTimeSection.classList.add("hidden");
+  answerKeySection.classList.add("hidden");
+  resultsSection.classList.add("hidden");
+  printableFactsSection.classList.add("hidden");
+  printableConfigSection.classList.add("hidden");
+  printableOutputSection.classList.add("hidden");
+  quizSection.classList.remove("hidden");
+  questionsGrid.innerHTML = "";
+  questionsGrid.classList.add("hidden");
+  startBtn.disabled = false;
+  answerKeyBtnHome.style.display = "none";
+  finishBelowDiv.classList.add('hidden');
+  window._customMode = null;
+}
+
+/* ---------- Prepare Custom (time mode) ---------- */
+function prepareCustom(selectedFactorsArray){
+  currentMode = "custom";
+  selectedFactor = null;
+  selectedFactorEl.textContent = `Custom: ${selectedFactorsArray.join(", ")}`;
+  const pool = [];
+  for(let i=0;i<TOTAL_QUESTIONS;i++){
+    const a = selectedFactorsArray[Math.floor(Math.random()*selectedFactorsArray.length)];
+    const b = Math.floor(Math.random()*12)+1;
+    pool.push({a, b, answer: a*b});
+  }
+  shuffle(pool);
+  questions = pool.map(q => ({...q, userAnswer: "", timeAnswered: null}));
+  noticeEl.classList.add("hidden");
+  homeSection.classList.add("hidden");
+  selectFactsSection.classList.add("hidden");
+  selectTimeSection.classList.add("hidden");
+  printableFactsSection.classList.add("hidden");
+  printableConfigSection.classList.add("hidden");
+  printableOutputSection.classList.add("hidden");
+  answerKeySection.classList.add("hidden");
+  resultsSection.classList.add("hidden");
+  quizSection.classList.remove("hidden");
+  questionsGrid.innerHTML = "";
+  questionsGrid.classList.add("hidden");
+  startBtn.disabled = false;
+  answerKeyBtnHome.style.display = "none";
+  currentMode = "custom";
+  window._customMode = 'time';
+  finishBelowDiv.classList.add('hidden');
+}
+
+/* ---------- Render questions (only after Start pressed) ---------- */
+function renderQuiz(){
+  questionsGrid.innerHTML = "";
+  for(let i=0;i<questions.length;i++){
+    const q = questions[i];
+    const card = document.createElement("div");
+    card.className = "question-card";
+    const label = document.createElement("div");
+    label.className = "q-label";
+    label.textContent = `${q.a} × ${q.b} =`;
+    card.appendChild(label);
+    const input = document.createElement("input");
+    input.type = "number";
+    input.inputMode = "numeric";
+    input.placeholder = "";
+    input.value = q.userAnswer !== undefined ? q.userAnswer : "";
+    input.dataset.index = i;
+    input.addEventListener("keydown", (ev)=>{
+      if(ev.key === "Enter"){
+        ev.preventDefault();
+        recordAnswerFromInput(i);
+      }
+    });
+    input.addEventListener("input", (ev)=>{
+      questions[i].userAnswer = ev.target.value;
+      // If custom->questions mode, check if last question answered to show finish-below button
+      if(window._customMode === 'questions'){
+        const lastIndex = questions.length - 1;
+        if(questions[lastIndex] && questions[lastIndex].userAnswer !== "" && questions[lastIndex].userAnswer !== undefined){
+          finishBelowDiv.classList.remove('hidden');
+        } else {
+          finishBelowDiv.classList.add('hidden');
+        }
+      }
+    });
+    const enterBtn = document.createElement("button");
+    enterBtn.className = "enter-btn";
+    enterBtn.textContent = "Enter";
+    enterBtn.addEventListener("click", ()=> recordAnswerFromInput(i));
+    card.appendChild(input);
+    card.appendChild(enterBtn);
+    questionsGrid.appendChild(card);
+  }
+  questionsGrid.classList.remove("hidden");
+  const firstInput = questionsGrid.querySelector('input[data-index="0"]');
+  if(firstInput) firstInput.focus();
+
+  // If custom->questions mode, keep the finish-below hidden until last is answered
+  if(window._customMode === 'questions'){
+    finishBelowDiv.classList.add('hidden'); // will show when last answered
+  } else {
+    finishBelowDiv.classList.add('hidden');
+  }
+}
+
+/* ---------- Start / Timer / Finish ---------- */
+startBtn.addEventListener("click", ()=>{
+  if(!questions || questions.length === 0) return alert("No quiz prepared. Return home and choose a factor or custom.");
+  // If custom->questions mode: render without timer
+  if(window._customMode === 'questions'){
+    startBtn.disabled = true;
+    timerEl.classList.add('hidden');
+    startTime = Date.now();
+    finished = false;
+    renderQuiz();
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    // finish-below will be shown only when last answer entered by user
+    finishBelowDiv.classList.add('hidden');
+    return;
+  }
+
+  // Else time-based (single or custom->time)
+  startBtn.disabled = true;
+  const durationSec = Math.round((selectedDurationMinutes || 2) * 60);
+  secondsLeft = durationSec;
+  timerEl.classList.remove("hidden");
+  updateTimerDisplay();
+  startTime = Date.now();
+  finished = false;
+  renderQuiz();
+  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  timerInterval = setInterval(()=>{
+    secondsLeft = Math.max(0, durationSec - Math.floor((Date.now() - startTime)/1000));
+    updateTimerDisplay();
+    if(secondsLeft <= 0){
+      stopTimer();
+      finishQuiz();
+    }
+  }, 200);
+});
+
+finishNowBtn.addEventListener("click", ()=>{ if(confirm("Finish now and view results?")){ stopTimer(); finishQuiz(); } });
+
+finishBelowBtn.addEventListener("click", ()=>{ finishQuiz(); });
+
+function stopTimer(){
+  if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  timerEl.classList.add("hidden");
+}
+
+function updateTimerDisplay(){
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2,"0");
+  const ss = String(secondsLeft % 60).padStart(2,"0");
+  timerEl.textContent = `${mm}:${ss}`;
+}
+
+/* ---------- Record answers ---------- */
+function recordAnswerFromInput(index){
+  const input = questionsGrid.querySelector(`input[data-index="${index}"]`);
+  if(!input) return;
+  const raw = input.value;
+  if(startTime && !questions[index].timeAnswered){
+    questions[index].timeAnswered = (Date.now() - startTime) / 1000;
+  }
+  questions[index].userAnswer = raw === "" ? "" : raw;
+  const nextIndex = index + 1;
+  if(nextIndex < questions.length){
+    const nextInput = questionsGrid.querySelector(`input[data-index="${nextIndex}"]`);
+    if(nextInput) nextInput.focus();
+  } else {
+    // if last question and in custom->questions mode, show finish button
+    if(window._customMode === 'questions'){
+      finishBelowDiv.classList.remove('hidden');
+    }
+  }
+}
+
+/* ---------- Finish & Results ---------- */
+function finishQuiz(){
+  if(finished) return;
+  finished = true;
+  stopTimer();
+  const now = Date.now();
+  const elapsedSeconds = Math.round((now - (startTime || now))/1000);
+  // Completed = answered (non-empty)
+  const completedQuestions = questions.filter(q => q.userAnswer !== "" && q.userAnswer !== undefined);
+  const completed = completedQuestions.length;
+  let correctCount = 0;
+  resultsGrid.innerHTML = "";
+  for(let i=0;i<questions.length;i++){
+    const q = questions[i];
+    if(q.userAnswer !== "" && q.userAnswer !== undefined){
+      const uaNum = Number(q.userAnswer);
+      const correct = (uaNum === q.answer);
+      if(correct) correctCount++;
+      const card = document.createElement("div");
+      card.className = "result-card " + (correct ? "correct" : "incorrect");
+      const top = document.createElement("div");
+      top.textContent = `${q.a} × ${q.b} =`;
+      top.style.fontWeight = "700";
+      top.style.fontSize = "16px";
+      const inputBox = document.createElement("div");
+      inputBox.style.padding = "8px";
+      inputBox.style.borderRadius = "6px";
+      inputBox.style.background = "#f3f3f3";
+      inputBox.style.fontWeight = "700";
+      inputBox.textContent = String(q.userAnswer);
+      const correctLine = document.createElement("div");
+      correctLine.className = "small-muted";
+      correctLine.textContent = `Correct Answer: ${q.answer}`;
+      card.appendChild(top);
+      card.appendChild(inputBox);
+      card.appendChild(correctLine);
+      resultsGrid.appendChild(card);
+    }
+  }
+  const avgTimePerQuestion = completed > 0 ? (elapsedSeconds / completed) : 0;
+  const questionsPerMinute = avgTimePerQuestion > 0 ? (60 / avgTimePerQuestion) : 0;
+  const percentage = completed > 0 ? (correctCount / completed * 100) : 0;
+
+  // Summary (no Questions Total)
+  summaryEl.innerHTML = `
+    <div><strong>Score:</strong> ${correctCount} / ${completed}</div>
+    <div><strong>Percentage:</strong> ${percentage.toFixed(1)}%</div>
+    <div><strong>Total elapsed:</strong> ${elapsedSeconds} seconds</div>
+    <div><strong>Average time per answered question:</strong> ${avgTimePerQuestion.toFixed(2)} s</div>
+    <div><strong>Questions per minute (from average):</strong> ${questionsPerMinute.toFixed(2)}</div>
+  `;
+
+  quizSection.classList.add("hidden");
+  resultsSection.classList.remove("hidden");
+
+  // re-enable Start so next run possible without full navigation
+  startBtn.disabled = false;
+  // hide finish-below when viewing results
+  finishBelowDiv.classList.add('hidden');
+}
+
+/* ---------- Initial state ---------- */
+/* ---------- Toggle: hide/show answered questions on Results page ---------- */
+(function(){
+  const toggleBtn = document.getElementById('toggle-answered-btn');
+  if(!toggleBtn) return;
+
+  const resultsGridEl = document.getElementById('results-grid');
+  const resultsSectionEl = document.getElementById('results');
+
+  function updateToggleButtonText(hidden){
+    toggleBtn.textContent = hidden ? 'Show answered' : 'Hide answered';
+  }
+
+  function setCardsVisibility(hidden){
+    const cards = resultsGridEl.querySelectorAll('.result-card');
+    if(cards.length === 0){
+      // If no cards, hide toggle button
+      toggleBtn.style.display = 'none';
+      return;
+    }
+    toggleBtn.style.display = 'inline-block';
+    cards.forEach(card => {
+      card.style.display = hidden ? 'none' : '';
+    });
+    updateToggleButtonText(hidden);
+  }
+
+  // initial attribute
+  let hidden = toggleBtn.getAttribute('data-hidden') === 'true';
+  setCardsVisibility(hidden);
+
+  toggleBtn.addEventListener('click', () => {
+    hidden = !hidden;
+    toggleBtn.setAttribute('data-hidden', hidden ? 'true' : 'false');
+    setCardsVisibility(hidden);
+  });
+
+  // Observe when results section becomes visible so we reset/hide toggle appropriately
+  const mo = new MutationObserver(() => {
+    if(resultsSectionEl.classList.contains('hidden')){
+      // hide toggle while not on results screen
+      toggleBtn.style.display = 'none';
+      return;
+    }
+    // results section visible: show/refresh state based on whether there are result cards
+    hidden = toggleBtn.getAttribute('data-hidden') === 'true';
+    setCardsVisibility(hidden);
+  });
+  mo.observe(resultsSectionEl, { attributes: true, attributeFilter: ['class'] });
+
+  // Also ensure toggle is updated after finishQuiz builds resultsGrid
+  // If finishQuiz is in same file, we can override by wrapping it; simplest: hook into DOM changes of resultsGrid
+  const mo2 = new MutationObserver(() => {
+    // when resultsGrid children change, update button visibility
+    hidden = toggleBtn.getAttribute('data-hidden') === 'true';
+    setCardsVisibility(hidden);
+  });
+  mo2.observe(resultsGridEl, { childList: true, subtree: false });
+})();
+
+goHome();
+</script>
+</body>
+</html>

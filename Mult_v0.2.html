@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Multiplication Facts</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; margin:0; background:#f7f7f7; color:#111}
+  header{background:#fff; padding:12px 20px; box-shadow:0 1px 4px rgba(0,0,0,.06); display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:10}
+  header img{height:48px; cursor:pointer}
+  h1{margin:0; font-size:32px; text-align:center; flex:1}
+  .chart-img{width:100%; max-width:100%; height:auto; border:1px solid #ddd; border-radius:6px}
+  main{padding:18px; max-width:1400px; margin:0 auto}
+  .grid{display:grid; gap:12px}
+  .home-grid{grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); align-items:start}
+  button{cursor:pointer; padding:10px 12px; border-radius:6px; border:1px solid #ccc; background:#fff}
+  .primary{background:#2b6cb0; color:white; border-color:transparent}
+  .top-right-timer{position:fixed; right:18px; top:12px; padding:8px 12px; border-radius:6px; font-weight:700; color:#fff; background:#c53030; z-index:50}
+  .notice{color:#c53030; font-weight:700; margin-bottom:12px}
+  .hidden{display:none}
+  #quiz-area{display:flex; gap:16px; flex-direction:column}
+  .controls{display:flex; gap:8px; align-items:center}
+  .questions-grid{display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; max-height:65vh; overflow:auto; padding:6px; background:#fff; border-radius:6px; border:1px solid #e2e8f0}
+  .question-card{display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:6px; background:#fafafa; border:1px solid #e6e6e6}
+  .q-label{font-weight:700}
+  input[type="number"]{width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:16px}
+  .enter-btn{padding:8px 10px}
+  .results-grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:8px}
+  .result-card{padding:8px; border-radius:6px; background:#fff; border:2px solid #ddd; display:flex; flex-direction:column; gap:6px}
+  .correct{border-color:#2f855a}
+  .incorrect{border-color:#e53e3e}
+  .small-muted{font-size:12px; color:#555}
+  .answer-key{overflow:auto; background:#fff; padding:12px; border-radius:6px; border:1px solid #ddd}
+  table{border-collapse:collapse}
+  td,th{padding:6px 8px; border:1px solid #eee; text-align:center}
+  footer{padding:12px; text-align:center; font-size:13px; color:#555}
+</style>
+</head>
+<body>
+<header>
+  <img id="logo-home" src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Multiplication.svg/64px-Multiplication.svg.png" alt="Home"/>
+  <h1>Multiplication Facts</h1>
+  <button id="btn-answerkey">Answer Key</button>
+</header>
+
+<div id="timer" class="top-right-timer hidden">02:00</div>
+
+<main>
+  <!-- HOME -->
+  <section id="home">
+    <div>
+      <!-- Enlarged multiplication chart -->
+      <img id="mult-chart" class="chart-img" alt="Multiplication Chart 1-12" />
+      <p style="margin-top:12px">Click a factor button to take a randomly-generated two-minute timed quiz</p>
+      <div class="grid home-grid" id="factor-buttons" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="hidden">
+    <div id="quiz-area">
+      <div class="notice">You have a two-minute time limit, try to complete as many questions as possible</div>
+      <div class="controls">
+        <button id="start-btn" class="primary">Start</button>
+        <button id="finish-now">Finish Now</button>
+        <div style="margin-left:auto"><strong>Selected:</strong> <span id="selected-factor"></span></div>
+      </div>
+      <div class="questions-grid hidden" id="questions-grid" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="hidden">
+    <h2>Results</h2>
+    <div id="summary" style="margin-bottom:12px"></div>
+    <div id="results-grid" class="results-grid"></div>
+    <div style="margin-top:12px">
+      <button id="back-home" class="primary">Back to Home</button>
+    </div>
+  </section>
+
+  <!-- ANSWER KEY -->
+  <section id="answer-key" class="hidden">
+    <h2>Answer Key (1×1 through 12×12)</h2>
+    <div class="answer-key" id="answer-key-table"></div>
+    <div style="margin-top:12px">
+      <button id="close-answerkey">Close Answer Key</button>
+    </div>
+  </section>
+
+</main>
+
+<footer>Multiplication practice — 250-question timed set per selection.</footer>
+
+<script>
+const PASSWORD = "SECUREpassword123";
+const TOTAL_QUESTIONS = 250;
+const SECONDS_LIMIT = 120;
+
+function makeChartSVG() {
+  const size = 720; const cell = 50;
+  let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000">';
+  for (let r=0;r<=12;r++){for(let c=0;c<=12;c++){
+    let x=c*cell,y=r*cell;
+    svg+=`<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="#fff" stroke="#ccc"/>`;
+    if(r>0&&c>0){svg+=`<text x="${x+25}" y="${y+30}" text-anchor="middle" font-size="16">${r*c}</text>`;}
+    else if(r==0&&c>0){svg+=`<text x="${x+25}" y="${y+30}" text-anchor="middle" font-size="16">${c}</text>`;}
+    else if(c==0&&r>0){svg+=`<text x="${x+25}" y="${y+30}" text-anchor="middle" font-size="16">${r}</text>`;}
+  }}
+  svg+='</svg>';
+  return "data:image/svg+xml;utf8,"+encodeURIComponent(svg);
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+let selectedFactor=null,questions=[],timerInterval=null,secondsLeft=SECONDS_LIMIT,startTime=null,finished=false;
+
+const multChartImg=document.getElementById("mult-chart");
+const factorButtonsEl=document.getElementById("factor-buttons");
+const homeSection=document.getElementById("home");
+const quizSection=document.getElementById("quiz");
+const resultsSection=document.getElementById("results");
+const answerKeySection=document.getElementById("answer-key");
+const timerEl=document.getElementById("timer");
+const selectedFactorEl=document.getElementById("selected-factor");
+const questionsGrid=document.getElementById("questions-grid");
+const startBtn=document.getElementById("start-btn");
+const finishNowBtn=document.getElementById("finish-now");
+const summaryEl=document.getElementById("summary");
+const resultsGrid=document.getElementById("results-grid");
+const btnAnswerKey=document.getElementById("btn-answerkey");
+const backHomeBtn=document.getElementById("back-home");
+const closeAnswerKeyBtn=document.getElementById("close-answerkey");
+const answerKeyTable=document.getElementById("answer-key-table");
+const logoHome=document.getElementById("logo-home");
+
+multChartImg.src=makeChartSVG();
+
+for(let i=1;i<=12;i++){const btn=document.createElement("button");btn.textContent=`${i} facts`;btn.onclick=()=>prepareFactor(i);factorButtonsEl.appendChild(btn);}
+btnAnswerKey.onclick=showAnswerKey;closeAnswerKeyBtn.onclick=()=>{answerKeySection.classList.add("hidden");homeSection.classList.remove("hidden");};
+backHomeBtn.onclick=goHome;logoHome.onclick=goHome;
+
+function showAnswerKey(){const pass=prompt("Enter password:");if(pass===PASSWORD){renderAnswerKey();homeSection.classList.add("hidden");answerKeySection.classList.remove("hidden");}else{alert("Incorrect password.");}}
+function renderAnswerKey(){let html='<table><thead><tr><th>×</th>';for(let c=1;c<=12;c++)html+=`<th>${c}</th>`;html+='</tr></thead><tbody>';for(let r=1;r<=12;r++){html+=`<tr><th>${r}</th>`;for(let c=1;c<=12;c++){html+=`<td>${r*c}</td>`;}html+='</tr>';}html+='</tbody></table>';answerKeyTable.innerHTML=html;}
+
+function goHome(){stopTimer();finished=false;quizSection.classList.add("hidden");resultsSection.classList.add("hidden");answerKeySection.classList.add("hidden");homeSection.classList.remove("hidden");timerEl.classList.add("hidden");}
+
+function prepareFactor(factor){selectedFactor=factor;selectedFactorEl.textContent=`${factor} × (1–12)`;const base=[];for(let b=1;b<=12;b++){base.push({a:factor,b,answer:factor*b});}let pool=[];while(pool.length<TOTAL_QUESTIONS){const copy=base.map(x=>({...x}));shuffle(copy);pool=pool.concat(copy);}pool.length=TOTAL_QUESTIONS;questions=pool.map(q=>({...q,userAnswer:""}));questionsGrid.innerHTML="";homeSection.classList.add("hidden");quizSection.classList.remove("hidden");timerEl.classList.add("hidden");startBtn.disabled=false;questionsGrid.classList.add("hidden");}
+
+function renderQuiz(){questionsGrid.innerHTML="";for(let i=0;i<questions.length;i++){const q=questions[i];const card=document.createElement("div");card.className="question-card";const label=document.createElement("div");label.className="q-label";label.textContent=`${q.a}×${q.b} =`;card.appendChild(label);const input=document.createElement("input");input.type="number";input.placeholder="answer";input.onkeydown=(ev)=>{if(ev.key==="Enter"){ev.preventDefault();submitAnswer(i);}};input.oninput=(ev)=>{questions[i].userAnswer=ev.target.value;};const enterBtn=document.createElement("button");enterBtn.className="enter-btn";enterBtn.textContent="Enter";enterBtn.onclick=()=>submitAnswer(i);card.appendChild(input);card.appendChild(enterBtn);questionsGrid.appendChild(card);}questionsGrid.classList.remove("hidden");questionsGrid.querySelector("input").focus();}
+
+function submitAnswer(i){const next=i+1;if(next<questions.length){const nextCard=questionsGrid.children[next];if(nextCard){nextCard.querySelector("input").focus();}}}
+
+startBtn.onclick=()=>{startBtn.disabled=true;secondsLeft=SECONDS_LIMIT;timerEl.classList.remove("hidden");updateTimerDisplay();startTime=Date.now();finished=false;renderQuiz();timerInterval=setInterval(()=>{secondsLeft=Math.max(0,SECONDS_LIMIT-Math.floor((Date.now()-startTime)/1000));updateTimerDisplay();if(secondsLeft<=0){stopTimer();finishQuiz();}},200);};
+finishNowBtn.onclick=()=>{if(confirm("Finish now?")){stopTimer();finishQuiz();}};
+function stopTimer(){if(timerInterval){clearInterval(timerInterval);timerInterval=null;}timerEl.classList.add("hidden");}
+function updateTimerDisplay(){const mm=String(Math.floor(secondsLeft/60)).padStart(2,"0");const ss=String(secondsLeft%60).padStart(2,"0");timerEl.textContent=`${mm}:${ss}`;}
+
+function finishQuiz(){if(finished)return;finished=true;const now=Date.now();const elapsed=Math.min(SECONDS_LIMIT,Math.round((now-(startTime||now))/1000));let correctCount=0;let completed=0;resultsGrid.innerHTML="";for(let i=0;i<questions.length;i++){const q=questions[i];if(q.userAnswer!==""){completed++;const ua=Number(q.userAnswer);const card=document.createElement("div");card.className="result-card";card.classList.add(ua===q.answer?"correct":"incorrect");const top=document.createElement("div");top.textContent=`${q.a}×${q.b} =`;const inputBox=document.createElement("div");inputBox.style.padding="8px";inputBox.style.background="#f3f3f3";inputBox.textContent=q.userAnswer;const correctLine=document.createElement("div");correctLine.className="small-muted";correctLine.textContent=`Correct Answer: ${q.answer}`;card.appendChild(top);card.appendChild(inputBox);card.appendChild(correctLine);resultsGrid.appendChild(card);if(ua===q.answer)correctCount++;}}const avgTime=completed>0?(elapsed/completed):0;const qpm=avgTime>0?(60/avgTime):0;summaryEl.innerHTML=`<div><strong>Score:</strong> ${correctCount}/${completed}</div><div><strong>Total elapsed:</strong> ${elapsed} sec</div><div><strong>Avg time per question:</strong> ${avgTime.toFixed(2)} s</div><div><strong>Questions per min:</strong> ${qpm.toFixed(2)}</div>`;quizSection.classList.add("hidden");resultsSection.classList.remove("hidden");}
+goHome();
+</script>
+</body>
+</html>
