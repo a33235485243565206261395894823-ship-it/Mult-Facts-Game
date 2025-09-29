@@ -35,3 +35,4 @@ Example: Game.html
 To change the password, use Method 2, then use Ctrl+F (or Cmd+F on Macintosh) and type the previous password. Replace it with the new password. Then Save and exit.
 ## Other Information
 Uses HTML5, CSS3, and JavaScript
+The future version(s) will be named future.html then count up numerically (future2.html, future3.html. etc)
